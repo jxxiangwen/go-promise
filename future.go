@@ -201,6 +201,7 @@ func (this *Future) OnCancel(callback func()) *Future {
 //Pipe registers one or two functions that returns a Future, and returns a proxy of pipeline Future.
 //First function will be called when Future is resolved, the returned Future will be as pipeline Future.
 //Secondary function will be called when Futrue is rejected, the returned Future will be as pipeline Future.
+//只允许传递1-2个参数
 func (this *Future) Pipe(callbacks ...interface{}) (result *Future, ok bool) {
 	if len(callbacks) == 0 ||
 		(len(callbacks) == 1 && callbacks[0] == nil) ||
@@ -210,6 +211,7 @@ func (this *Future) Pipe(callbacks ...interface{}) (result *Future, ok bool) {
 	}
 
 	//ensure all callback functions match the spec "func(v interface{}) *Future"
+	//将所有callbacks转为func(v interface{}) *Future
 	cs := make([]func(v interface{}) *Future, len(callbacks), len(callbacks))
 	for i, callback := range callbacks {
 		if c, ok1 := callback.(func(v interface{}) *Future); ok1 {
@@ -256,9 +258,9 @@ func (this *Future) Pipe(callbacks ...interface{}) (result *Future, ok bool) {
 		if r != nil {
 			result = this
 			if r.Typ == RESULT_SUCCESS && cs[0] != nil {
-				result = (cs[0](r.Result))
+				result = cs[0](r.Result)
 			} else if r.Typ == RESULT_FAILURE && len(cs) > 1 && cs[1] != nil {
-				result = (cs[1](r.Result))
+				result = cs[1](r.Result)
 			}
 		} else {
 			newPipe := &pipe{}
@@ -304,7 +306,7 @@ func (this *Future) setResult(r *PromiseResult) (e error) { //r *PromiseResult) 
 			fmt.Println("\nerror in setResult():", err)
 		}
 	}()
-
+	//先声明一个错误,可以学习
 	e = errors.New("Cannot resolve/reject/cancel more than once")
 
 	for {
@@ -363,6 +365,7 @@ func (this *Future) addCallback(callback interface{}, t callbackType) {
 	}
 
 	for {
+		//用于后面的cas 指针,这个可以学习,可以用来实现地址的原子修改
 		v := this.loadVal()
 		r := v.r
 		if r == nil {
@@ -384,6 +387,7 @@ func (this *Future) addCallback(callback interface{}, t callbackType) {
 				break
 			}
 		} else {
+			//如果已经执行完成,直接调用回调函数
 			if (t == CALLBACK_DONE && r.Typ == RESULT_SUCCESS) ||
 				(t == CALLBACK_FAIL && r.Typ == RESULT_FAILURE) ||
 				(t == CALLBACK_ALWAYS && r.Typ != RESULT_CANCELLED) {

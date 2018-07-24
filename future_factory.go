@@ -39,6 +39,7 @@ func Start(act interface{}, syncs ...bool) *Future {
 		if syncs != nil && len(syncs) > 0 && !syncs[0] {
 			//sync call
 			r, err := action()
+			// action里面cancel掉
 			if pr.IsCancelled() {
 				pr.Cancel()
 			} else {
